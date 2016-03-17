@@ -8,41 +8,63 @@
  * Service in the dis1App.
  */
 angular.module('dis1App')
-  .service('configDataStorage', function () {
-    this.getData = function(configName, params) {
-      // если configName не строка
-      if (typeof(configName) !== "string") {
-        throw Error("Invalid argument: configName must be a string");
-      }
+  .service('configDataStorage', function ($websocket, alasql) {
 
-      // если params заданы
-      if (typeof(params) !== "undefined") {
+    this.getConfig = function(options, callback) {
 
-      }
+      var portletId = options.portletId;
+      var configName = options.configName;
 
-    };
+      // // Check input parameters
+      // if (typeof(portletId) !== 'string') {
+      //   throw Error("Invalid argument: portletId must be a string");
+      // }
+      // if (typeof(configName) !== 'string') {
+      //   throw Error("Invalid argument: configName must be a string");
+      // }
 
-    this.sql = function(query) {
-      // если query не строка
-      if (typeof(query) !== "string") {
-        throw Error("Invalid argument: query must be a string")
-      }
 
-      // исполнить запрос
-      alasql(query);
+      // проверить наличие данных в alasql
+      var res = alasql('SELECT * FROM CONFIG_DATA WHERE PORTLET_ID = ? AND  NAME = ?', [portletId, configName]);
+      // console.log(res);
+      // console.log(typeof(res));
 
-      // если присутствует UPDATE в query
-      if (query.toLowerCase().indexOf('update') != -1) {
-        // разделить строку query на список строк, изначально разделенных ';'
-        var listOfStatements = query.split(';');
-        // для каждого из этого списка
-        for each (statement in listOfStatements) {
-          // если в нем есть UPDATE
-          if (statement.toLowerCase().indexOf('update') != -1) {
-            // сохранить изменения в БД на сервере для данного update
+      if (res.count === 0) {
 
+        $websocket.subscribe(
+          {
+            portletId: portletId,
+            configName: configName
+          },
+
+          function(response) {
+            alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, VALUE) VALUES (?, ?, ?)', [
+              portletId, configName, response
+            ]);
+            callback(response);
           }
-        }
+        );
+
+      }
+
+      if (res.count === 1) {
+        $websocket.subscribe(
+          {
+            portletId: portletId,
+            configName: configName,
+            hash: res[0].HASH
+          },
+
+          function(response) {
+            if (response !== {status: 'alreadyUpToDate'}) {
+              alasql('UPDATE CONFIG_DATA SET VALUE = ? WHERE PORTLET_ID = ? AND NAME = ?', [
+                response, portletId, configName
+              ]);
+            }
+            callback(res[0].DATA);
+          }
+        );
+
       }
     };
 
