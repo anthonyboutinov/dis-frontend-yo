@@ -10,7 +10,17 @@
 angular.module('dis1App')
   .service('configDataStorage', function ($websocket, alasql) {
 
-    this.getConfig = function(options, callback) {
+    var queue = [];
+
+    this.run = function() {
+
+      for (var item in queue) {
+        this._runItem(item.options, item.callback);
+      }
+
+    };
+
+    this._runItem = function(options, callback) {
 
       var portletId = options.portletId;
       var configName = options.configName;
@@ -64,8 +74,11 @@ angular.module('dis1App')
             callback(res[0].DATA);
           }
         );
-
       }
+    };
+
+    this.getConfig = function(options, callback) {
+        queue.put({options:options, callback:callback});
     };
 
   });
