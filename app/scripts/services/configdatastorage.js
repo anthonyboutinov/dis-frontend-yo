@@ -84,6 +84,7 @@ angular.module('dis1App')
         }
         i++;
       }
+      return -1;
     }
 
     /*
@@ -93,15 +94,6 @@ angular.module('dis1App')
       }
     */
     this._runItem = function(query) {
-
-      // // Check input parameters
-      // if (typeof(portletId) !== 'string') {
-      //   throw Error("Invalid argument: portletId must be a string");
-      // }
-      // if (typeof(configName) !== 'string') {
-      //   throw Error("Invalid argument: configName must be a string");
-      // }
-
 
       // проверить наличие данных в alasql
       var res = alasql('SELECT * FROM CONFIG_DATA WHERE PORTLET_ID = ? AND  NAME = ?', [query.portletId, query.configName]);
@@ -125,6 +117,14 @@ angular.module('dis1App')
     };
 
     this.getConfig = function(query, callback) {
+
+      // // Check input parameters
+      // if (typeof(portletId) !== 'string') {
+      //   throw Error("Invalid argument: portletId must be a string");
+      // }
+      // if (typeof(configName) !== 'string') {
+      //   throw Error("Invalid argument: configName must be a string");
+      // }
 
       // find this query
       var index = this._indexOfProperty(query, 'query', queue);
