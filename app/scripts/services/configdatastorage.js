@@ -56,13 +56,19 @@ angular.module('dis1App')
           dataKind: 'config',
           list: websocketQueue
         },
-        function(respond) {
+        function(multirespond) {
           var index, length;
-          for (index = 0, length = respond.length; index < length; index++) {
-            var data = respond[index];
+          for (index = 0, length = multirespond.length; index < length; index++) {
+            var resopnd = multirespond[index];
+            /*
+              respond: {
+                query,
+                content: {DATA, HASH} либо {status}
+              }
+            */
 
             // find and retrieve callback function for this item in `queue` array
-            var indexInQueue = this._indexOfProperty(item.query, 'query', queue);
+            var indexInQueue = this._indexOfProperty(respond.query, 'query', queue);
             var callback = queue[indexInQueue].callback;
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
@@ -73,15 +79,15 @@ angular.module('dis1App')
             if (cachedData === null) {
 
               // if not already up to date
-              if (data !== {status: 'alreadyUpToDate'}) {
+              if (respond.content !== {status: 'alreadyUpToDate'}) {
 
                 // update cache with new value
                 alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
-                  data.DATA, data.HASH, portletId, configName
+                  respond.content.DATA, respond.content.HASH, portletId, configName
                 ]);
 
                 // and run callback function on this fresh data
-                callback(data.DATA);
+                callback(respond.content.DATA);
 
               }
               // if cached data IS up to date
@@ -94,11 +100,11 @@ angular.module('dis1App')
             else {
               // write to cache
               alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-                portletId, configName, data.DATA, data.HASH
+                portletId, configName, respond.content.DATA, respond.content.HASH
               ]);
 
               // run callback function on this data
-              callback(data.DATA);
+              callback(respond.content.DATA);
             }
           }
         }
@@ -131,7 +137,7 @@ angular.module('dis1App')
 
       var cachedData = null;
 
-      if (typeof(res) !== "undefined") {
+      if (typeof(res) !== 'undefined') {
         // Add hash value to the query
         query.hash = res[0].HASH;
         // Get cached data
