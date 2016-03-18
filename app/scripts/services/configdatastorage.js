@@ -19,12 +19,12 @@ angular.module('dis1App')
 
     alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
             ATTACH INDEXEDDB DATABASE APP;', [], function() {
-              console.log('alasql: database APP is ready');
+              console.log(new Date() + ' alasql: database APP is ready');
               alasql('USE APP;', [], function() {
-                console.log('alasql: database APP is selected');
+                console.log(new Date() + ' alasql: database APP is selected');
 
                 var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
-                  ID_CONFIG_DATA INT AUTO_INCREMENT PRIMARY KEY, \
+                  ID_CONFIG_DATA INT AUTO_INCREMENT, \
                   PAGE_ID STRING NOT NULL, \
                   NAME STRING NOT NULL, \
                   DATA JSON NOT NULL, \
@@ -33,17 +33,50 @@ angular.module('dis1App')
                   UNIQUE(PAGE_ID, NAME) \
                 );');
                 if (res === 0) {
-                  console.log('alasql: table CONFIG_DATA is already present');
+                  console.log(new Date() + ' alasql: table CONFIG_DATA is already present');
                 } else {
-                  console.log('alasql: table CONFIG_DATA has been created');
+                  console.log(new Date() + ' alasql: table CONFIG_DATA has been created');
                 }
 
               });
     });
-    console.log('alasql: init request sent');
+    console.log(new Date() + ' alasql: init request sent');
 
   })
   .service('configDataStorage', function (sharedWebSocket, deepEquals) {
+
+    this.resetTable = function() {
+      this.drop();
+      this.createTable();
+      this.populate();
+    }
+
+    this.drop = function() {
+      alasql('DROP TABLE CONFIG_DATA;');
+    };
+
+    this.populate = function() {
+      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
+      ]);
+    }
+
+    this.createTable = function() {
+      var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
+        ID_CONFIG_DATA INT AUTO_INCREMENT, \
+        PAGE_ID STRING NOT NULL, \
+        NAME STRING NOT NULL, \
+        DATA JSON NOT NULL, \
+        HASH STRING NOT NULL, \
+        PRIMARY KEY (ID_CONFIG_DATA), \
+        UNIQUE(PAGE_ID, NAME) \
+      );');
+      if (res === 0) {
+        console.log('alasql: table CONFIG_DATA is already present');
+      } else {
+        console.log('alasql: table CONFIG_DATA has been created');
+      }
+    };
 
     var queue = []; // an array of {query, [callback]}
 
@@ -104,7 +137,7 @@ angular.module('dis1App')
 
                 // update cache with new value
                 alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
-                  respond.content.DATA, respond.content.HASH, portletId, configName
+                  respond.content.DATA, respond.content.HASH, pageId, configName
                 ]);
 
                 // and run callback function on this fresh data
@@ -121,7 +154,7 @@ angular.module('dis1App')
             else {
               // write to cache
               alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-                portletId, configName, respond.content.DATA, respond.content.HASH
+                pageId, configName, respond.content.DATA, respond.content.HASH
               ]);
 
               // run callback function on this data
@@ -149,11 +182,7 @@ angular.module('dis1App')
 
       // проверить наличие данных в alasql
 
-      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-        '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
-      ]);
-
-      alasql('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?', [query.portletId, query.configName], function(queryResult, error) {
+      alasql('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?', [query.pageId, query.configName], function(queryResult, error) {
         console.log(queryResult);
 
         var cachedData = null;
@@ -178,8 +207,8 @@ angular.module('dis1App')
     this.getConfig = function(query, callback) {
 
       // // Check input parameters
-      // if (typeof(portletId) !== 'string') {
-      //   throw Error("Invalid argument: portletId must be a string");
+      // if (typeof(pageId) !== 'string') {
+      //   throw Error("Invalid argument: pageId must be a string");
       // }
       // if (typeof(configName) !== 'string') {
       //   throw Error("Invalid argument: configName must be a string");
