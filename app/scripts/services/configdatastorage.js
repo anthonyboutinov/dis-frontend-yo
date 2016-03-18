@@ -10,6 +10,13 @@
 angular.module('dis1App')
   .run(function() {
 
+  alasql.options.angularjs = true;
+  alasql.options.errorlog = false; // Log or throw error
+  alasql.options.casesensitive = true; // Table and column names are case sensitive and converted to lower-case
+  alasql.options.logprompt = true; // Print SQL at log
+  alasql.options.columnlookup = 10; // How many rows to lookup to define columns
+
+
     alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
             ATTACH INDEXEDDB DATABASE APP;', [], function() {
               console.log('alasql: database APP is ready');
@@ -17,16 +24,18 @@ angular.module('dis1App')
                 console.log('alasql: database APP is selected');
 
                 var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
-                  PORTLET_ID STRING NOT NULL, \
+                  ID_CONFIG_DATA INT AUTO_INCREMENT PRIMARY KEY, \
+                  PAGE_ID STRING NOT NULL, \
                   NAME STRING NOT NULL, \
                   DATA JSON NOT NULL, \
                   HASH STRING NOT NULL, \
-                  UNIQUE(PORTLET_ID, NAME) \
+                  PRIMARY KEY (ID_CONFIG_DATA), \
+                  UNIQUE(PAGE_ID, NAME) \
                 );');
                 if (res === 0) {
-                  console.log('alasql: table CONFIG_DATA is ready');
+                  console.log('alasql: table CONFIG_DATA is already present');
                 } else {
-                  console.log('alasql: create table result is not what it was expected to be');
+                  console.log('alasql: table CONFIG_DATA has been created');
                 }
 
               });
@@ -46,10 +55,21 @@ angular.module('dis1App')
       var index, length;
       for (index = 0, length = queue.length; index < length; index++) {
         var item = queue[index];
-        var result = this._runItem(item.query);
-        websocketQueue.push(result.query);
-        cachedDataQueue.push(result.cachedData);
+        this._runItem(item.query, function(result) {
+          websocketQueue.push(result.query);
+          cachedDataQueue.push(result.cachedData);
+
+          // when all are processed, proceed to `subscribe`
+          if (index === length - 1) {
+            subscribe();
+          }
+        });
+
       }
+
+    };
+
+    var subscribe = function() {
 
       sharedWebSocket.subscribe(
         {
@@ -69,7 +89,7 @@ angular.module('dis1App')
             */
 
             // find and retrieve callback function for this item in `queue` array
-            var indexInQueue = this._indexOfProperty(respond.query, 'query', queue);
+            var indexInQueue = _indexOfProperty(respond.query, 'query', queue);
             var callback = queue[indexInQueue].callback;
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
@@ -83,7 +103,7 @@ angular.module('dis1App')
               if (respond.content !== {status: 'alreadyUpToDate'}) {
 
                 // update cache with new value
-                alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
+                alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
                   respond.content.DATA, respond.content.HASH, portletId, configName
                 ]);
 
@@ -100,7 +120,7 @@ angular.module('dis1App')
             // if there is no entry in the cache
             else {
               // write to cache
-              alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+              alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
                 portletId, configName, respond.content.DATA, respond.content.HASH
               ]);
 
@@ -113,42 +133,45 @@ angular.module('dis1App')
 
     };
 
-    this._indexOfProperty = function(needle, propertyName, haystack) {
+    var _indexOfProperty = function(needle, propertyName, haystack) {
       var index, length;
       for (index = 0, length = haystack.length; index < length; index++) {
-        if (haystack[index][propertyName] === needle) {
+        if (deepEquals(haystack[index][propertyName], needle)) {
           return index;
         }
       }
       return -1;
     }
 
-    this._runItem = function(query) {
+    this._runItem = function(query, callback) {
       console.log('_runItem:');
       console.log(query);
 
       // проверить наличие данных в alasql
 
-      // alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-      //   '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
-      // ]);
+      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
+      ]);
 
-      var res = alasql('SELECT * FROM CONFIG_DATA WHERE PORTLET_ID = ? AND  NAME = ?', [query.portletId, query.configName]);
-      console.log(res);
+      alasql('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?', [query.portletId, query.configName], function(queryResult, error) {
+        console.log(queryResult);
 
-      var cachedData = null;
+        var cachedData = null;
 
-      if (typeof(res) !== 'undefined') {
-        // Add hash value to the query
-        query.hash = res[0].HASH;
-        // Get cached data
-        cachedData = res[0].DATA;
-      }
+        if (queryResult.length === 1) {
+          // Add hash value to the query
+          query.hash = queryResult[0].HASH;
+          // Get cached data
+          cachedData = queryResult[0].DATA;
+        }
 
-      return {
-        query: query,
-        cachedData: cachedData
-      };
+        console.log({query: query, cachedData: cachedData});
+
+        callback({
+          query: query,
+          cachedData: cachedData
+        });
+      });
 
     };
 
@@ -163,7 +186,7 @@ angular.module('dis1App')
       // }
 
       // find this query
-      var index = this._indexOfProperty(query, 'query', queue);
+      var index = _indexOfProperty(query, 'query', queue);
 
       if (index > -1) {
         // if already present, add another callback function to it
