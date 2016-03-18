@@ -17,6 +17,13 @@ angular.module('dis1App')
     // this.collection = [];
 
     var subscribedTo = [];
+    var ids = [];
+
+    var nextId = 0;
+
+    var getNextId = function() {
+      return nextId++;
+    }
 
 
     dataStream.onMessage(function(message) {
@@ -39,15 +46,18 @@ angular.module('dis1App')
         // send subscribe request
         dataStream.send(JSON.stringify({
           action: 'subscribe',
-          to: to
+          to: to, // will be an array for bulk data request
+          id: getNextId()
         }));
       }
 
+      var id = ids[subscribedTo.indexOf(to)];
+
       dataStream.onMessage(function(message) {
-        var data = JSON.parse(message.data);
-        console.log(data);
-        if (data.to === to) {
-          callback(data.content);
+        var data = JSON.parse(message);
+        console.log(message);
+        if (data.id === id) {
+          callback(message.content);
         }
       });
     };
@@ -57,13 +67,16 @@ angular.module('dis1App')
       var index = subscribedTo.indexOf(from);
       if (index > -1) {
 
+        var id = ids[index];
+
         // removed from `subscribedTo` list
         subscribedTo.splice(index, 1);
+        ids.splice(index, 1);
 
         // send unsubscribe request
         dataStream.send(JSON.stringify({
           action: 'unsubscribe',
-          from: from
+          id: id
         }));
       }
 

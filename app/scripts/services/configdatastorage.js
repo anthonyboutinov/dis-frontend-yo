@@ -57,6 +57,7 @@ angular.module('dis1App')
           list: websocketQueue
         },
         function(multirespond) {
+          // multirespond is an array
           var index, length;
           for (index = 0, length = multirespond.length; index < length; index++) {
             var resopnd = multirespond[index];
