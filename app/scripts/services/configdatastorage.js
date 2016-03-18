@@ -8,11 +8,33 @@
  * Service in the dis1App.
  */
 angular.module('dis1App')
-  .service('configDataStorage', function ($websocket) {
+  .run(function() {
 
     alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
-           ATTACH INDEXEDDB DATABASE APP; \
-           CREATE TABLE IF NOT EXISTS APP.CONFIG_DATA (ID_CONFIG_DATA, PORTLET_ID, NAME, DATA, HASH);');
+            ATTACH INDEXEDDB DATABASE APP;', [], function() {
+              console.log('alasql: database APP is ready');
+              alasql('USE APP;', [], function() {
+                console.log('alasql: database APP is selected');
+
+                var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
+                  PORTLET_ID STRING NOT NULL, \
+                  NAME STRING NOT NULL, \
+                  DATA JSON NOT NULL, \
+                  HASH STRING NOT NULL, \
+                  UNIQUE(PORTLET_ID, NAME) \
+                );');
+                if (res === 0) {
+                  console.log('alasql: table CONFIG_DATA is ready');
+                } else {
+                  console.log('alasql: create table result is not what it was expected to be');
+                }
+
+              });
+    });
+    console.log('alasql: init request sent');
+
+  })
+  .service('configDataStorage', function (sharedWebSocket) {
 
     var queue = []; // an array of {query, [callback]}
 
@@ -29,7 +51,7 @@ angular.module('dis1App')
         cachedDataQueue.push(result.cachedData);
       }
 
-      $websocket.subscribe(
+      sharedWebSocket.subscribe(
         {
           dataKind: 'config',
           list: websocketQueue
@@ -54,7 +76,7 @@ angular.module('dis1App')
               if (data !== {status: 'alreadyUpToDate'}) {
 
                 // update cache with new value
-                alasql('UPDATE APP.CONFIG_DATA SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
+                alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
                   data.DATA, data.HASH, portletId, configName
                 ]);
 
@@ -71,7 +93,7 @@ angular.module('dis1App')
             // if there is no entry in the cache
             else {
               // write to cache
-              alasql('INSERT INTO APP.CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+              alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
                 portletId, configName, data.DATA, data.HASH
               ]);
 
@@ -95,17 +117,21 @@ angular.module('dis1App')
     }
 
     this._runItem = function(query) {
-      console.log("_runItem:");
+      console.log('_runItem:');
       console.log(query);
 
       // проверить наличие данных в alasql
-      var res = alasql('SELECT * FROM APP.CONFIG_DATA WHERE PORTLET_ID = ? AND  NAME = ?', [query.portletId, query.configName]);
+
+      // alasql('INSERT INTO CONFIG_DATA (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+      //   '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
+      // ]);
+
+      var res = alasql('SELECT * FROM CONFIG_DATA WHERE PORTLET_ID = ? AND  NAME = ?', [query.portletId, query.configName]);
       console.log(res);
-      console.log(typeof(res));
 
       var cachedData = null;
 
-      if (res.count === 1) {
+      if (typeof(res) !== "undefined") {
         // Add hash value to the query
         query.hash = res[0].HASH;
         // Get cached data
