@@ -10,7 +10,7 @@
 angular.module('dis1App')
   .service('configDataStorage', function ($websocket, alasql) {
 
-    var queue = []; // an array of {query, callback}
+    var queue = []; // an array of {query, [callback]}
 
     this.run = function() {
 
@@ -32,7 +32,7 @@ angular.module('dis1App')
           for (var data in respond) {
 
             // find and retrieve callback function for this item in `queue` array
-            var indexInQueue = search1(item.query, queue);
+            var indexInQueue = this._indexOfProperty(item.query, 'query', queue);
             var callback = queue[indexInQueue].callback;
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
@@ -76,8 +76,14 @@ angular.module('dis1App')
 
     };
 
-    var search1 = function(needle, haystack) {
-      return 0;
+    this._indexOfProperty = function(needle, propertyName, haystack) {
+      var i = 0;
+      for (var item in haystack) {
+        if (item[propertyName] === needle) {
+          return i;
+        }
+        i++;
+      }
     }
 
     /*
@@ -119,7 +125,23 @@ angular.module('dis1App')
     };
 
     this.getConfig = function(query, callback) {
-        queue.put({query:query, callback:callback});
+
+      // find this query
+      var index = this._indexOfProperty(query, 'query', queue);
+
+      if (index > -1) {
+        // if already present, add another callback function to it
+        queue[index].callback.push(callback);
+      } else {
+        // if no such query was found in the queye already, add it to the queue with an array of a single callback
+        queue.push(
+          {
+            query: query,
+            callback: [callback]
+          }
+        );
+      }
+
     };
 
   });
