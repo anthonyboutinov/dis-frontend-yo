@@ -19,11 +19,10 @@ angular.module('dis1App')
 
     alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
             ATTACH INDEXEDDB DATABASE APP;', [], function() {
-              console.log(new Date() + ' alasql: database APP is ready');
-              alasql('USE APP;', [], function() {
-                console.log(new Date() + ' alasql: database APP is selected');
+              console.log(new Date() + ' alasql: database APP has been attached');
 
-                var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
+                alasql('USE APP;\
+                  CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
                   ID_CONFIG_DATA INT AUTO_INCREMENT, \
                   PAGE_ID STRING NOT NULL, \
                   NAME STRING NOT NULL, \
@@ -32,13 +31,7 @@ angular.module('dis1App')
                   PRIMARY KEY (ID_CONFIG_DATA), \
                   UNIQUE(PAGE_ID, NAME) \
                 );');
-                if (res === 0) {
-                  console.log(new Date() + ' alasql: table CONFIG_DATA is already present');
-                } else {
-                  console.log(new Date() + ' alasql: table CONFIG_DATA has been created');
-                }
-
-              });
+                console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
     });
     console.log(new Date() + ' alasql: init request sent');
 
@@ -49,7 +42,7 @@ angular.module('dis1App')
       this.drop();
       this.createTable();
       this.populate();
-    }
+    };
 
     this.drop = function() {
       alasql('DROP TABLE CONFIG_DATA;');
@@ -59,7 +52,7 @@ angular.module('dis1App')
       alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
         '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
       ]);
-    }
+    };
 
     this.createTable = function() {
       var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
@@ -89,12 +82,14 @@ angular.module('dis1App')
       for (index = 0, length = queue.length; index < length; index++) {
         var item = queue[index];
         this._runItem(item.query, function(result) {
+          console.log(new Date() + " _runItem callback fired with result:");
+          console.log(result);
           websocketQueue.push(result.query);
           cachedDataQueue.push(result.cachedData);
 
           // when all are processed, proceed to `subscribe`
           if (index === length - 1) {
-            subscribe();
+            subscribe(websocketQueue);
           }
         });
 
@@ -102,7 +97,10 @@ angular.module('dis1App')
 
     };
 
-    var subscribe = function() {
+    var subscribe = function(websocketQueue) {
+
+      console.log(new Date() + " subscribe fired with websocketQueue:");
+      console.log(websocketQueue);
 
       sharedWebSocket.subscribe(
         {
@@ -180,10 +178,14 @@ angular.module('dis1App')
       console.log('_runItem:');
       console.log(query);
 
+      var pageId = query.pageId;
+      var configName = query.configName;
+
       // проверить наличие данных в alasql
 
-      alasql('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?', [query.pageId, query.configName], function(queryResult, error) {
-        console.log(queryResult);
+      var select = alasql.compile('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?');
+      select([pageId, configName], function(queryResult) {
+        console.log(new Date() + '>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +pageId+ ' AND  NAME = ' + configName);
 
         var cachedData = null;
 
@@ -193,8 +195,6 @@ angular.module('dis1App')
           // Get cached data
           cachedData = queryResult[0].DATA;
         }
-
-        console.log({query: query, cachedData: cachedData});
 
         callback({
           query: query,
