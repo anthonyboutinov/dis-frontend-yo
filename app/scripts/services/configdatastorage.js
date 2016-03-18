@@ -43,7 +43,7 @@ angular.module('dis1App')
     console.log('alasql: init request sent');
 
   })
-  .service('configDataStorage', function (sharedWebSocket) {
+  .service('configDataStorage', function (sharedWebSocket, deepEquals) {
 
     var queue = []; // an array of {query, [callback]}
 
@@ -136,7 +136,7 @@ angular.module('dis1App')
     var _indexOfProperty = function(needle, propertyName, haystack) {
       var index, length;
       for (index = 0, length = haystack.length; index < length; index++) {
-        if (deepEquals(haystack[index][propertyName], needle)) {
+        if (deepEquals.compare(haystack[index][propertyName], needle)) {
           return index;
         }
       }
