@@ -54,6 +54,12 @@ angular.module('dis1App')
       ]);
     };
 
+    this.test = function() {
+      this.getConfig({pageId: 'homepage', configName: 'test'}, function(value){alert(value);});
+      this.getConfig({pageId: '222', configName: 'test'}, function(value){alert(value);});
+      this.run();
+    };
+
     this.createTable = function() {
       var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
         ID_CONFIG_DATA INT AUTO_INCREMENT, \
@@ -81,23 +87,30 @@ angular.module('dis1App')
       var index, length;
       for (index = 0, length = queue.length; index < length; index++) {
         var item = queue[index];
-        this._runItem(item.query, function(result) {
-          console.log(new Date() + " _runItem callback fired with result:");
-          console.log(result);
-          websocketQueue.push(result.query);
-          cachedDataQueue.push(result.cachedData);
 
-          // when all are processed, proceed to `subscribe`
-          if (index === length - 1) {
-            _subscribe(websocketQueue);
-          }
-        });
+        // create scope so that the correct `index` value is used in callback funciton
+        (function(index) {
+
+          _runItem(item.query, function(result) {
+            console.log(new Date() + " _runItem callback fired with result:");
+            console.log(result);
+            websocketQueue.push(result.query);
+            cachedDataQueue.push(result.cachedData);
+
+            // when all are processed, proceed to `subscribe`
+            if (index === length - 1) {
+              _subscribe(websocketQueue, cachedDataQueue);
+            }
+          });
+
+        })(index);
+        // eof scope
 
       }
 
     };
 
-    var _subscribe = function(websocketQueue) {
+    var _subscribe = function(websocketQueue, cachedDataQueue) {
 
       console.log(new Date() + " subscribe fired with websocketQueue:");
       console.log(websocketQueue);
@@ -111,11 +124,11 @@ angular.module('dis1App')
           // multirespond is an array
           var index, length;
           for (index = 0, length = multirespond.length; index < length; index++) {
-            var resopnd = multirespond[index];
+            var respond = multirespond[index];
             /*
               respond: {
                 query,
-                content: {DATA, HASH} либо {status}
+                content: {DATA, HASH} либо строка со статусом
               }
             */
 
@@ -131,11 +144,11 @@ angular.module('dis1App')
             if (cachedData === null) {
 
               // if not already up to date
-              if (respond.content !== {status: 'alreadyUpToDate'}) {
+              if (respond.content !== 'alreadyUpToDate') {
 
                 // update cache with new value
                 alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
-                  respond.content.DATA, respond.content.HASH, pageId, configName
+                  respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
                 ]);
 
                 // and run callback function on this fresh data
@@ -152,7 +165,7 @@ angular.module('dis1App')
             else {
               // write to cache
               alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-                pageId, configName, respond.content.DATA, respond.content.HASH
+                respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
               ]);
 
               // run callback function on this data
@@ -169,7 +182,7 @@ angular.module('dis1App')
       if (!state) {
         console.log('not ready');
       }
-    }
+    };
 
     var _indexOfProperty = function(needle, propertyName, haystack) {
       var index, length;
@@ -179,11 +192,9 @@ angular.module('dis1App')
         }
       }
       return -1;
-    }
+    };
 
-    this._runItem = function(query, callback) {
-      console.log('_runItem:');
-      console.log(query);
+    var _runItem = function(query, callback) {
 
       var pageId = query.pageId;
       var configName = query.configName;
