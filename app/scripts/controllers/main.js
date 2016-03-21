@@ -16,7 +16,7 @@ angular.module('dis1App')
 
     $scope.config = {};
 
-    configManager.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
+    configManager.subscribe({portletId: 'main', configName: 'styling'}, function(config) {
       $scope.$apply(function(){
         $scope.config = config;
       });
@@ -28,7 +28,7 @@ angular.module('dis1App')
       some: [42, 43, 57, 73, 14, 13, 64, 62]
     };
 
-    configManager.subscribeToData({
+    dataManager.subscribe({
       portletId: 'main',
       webPartId: 'main',
       params: {
