@@ -12,26 +12,30 @@
 
   var presets = function() {
 
-    return {
-
-      /*********************************/
-      /*        presets.config         */
-      /*********************************/
+    var _presets = {
       config: {
+        tableName: 'CONFIG'
+      },
+      data: {
+        tableName: 'DATA'
+      }
+    };
+
+    _presets.config = {
 
         tableName: 'CONFIG',
 
         create: function() {
-          return
-           'CREATE TABLE IF NOT EXISTS ' + this.config.tableName + ' ( \
-            ID_' + this.config.tableName + ' INT AUTO_INCREMENT, \
-            PORTLET_ID STRING NOT NULL, \
-            NAME STRING NOT NULL, \
-            DATA JSON NOT NULL, \
-            HASH STRING NOT NULL, \
-            PRIMARY KEY (ID_' + this.config.tableName + '), \
-            UNIQUE(PORTLET_ID, NAME) \
-            )'
+          var sql = 'CREATE TABLE IF NOT EXISTS ' + _presets.config.tableName + ' ( \
+           ID_' + _presets.config.tableName + ' INT AUTO_INCREMENT, \
+           PORTLET_ID STRING NOT NULL, \
+           NAME STRING NOT NULL, \
+           DATA JSON NOT NULL, \
+           HASH STRING NOT NULL, \
+           PRIMARY KEY (ID_' + _presets.config.tableName + '), \
+           UNIQUE(PORTLET_ID, NAME) \
+           )';
+          return sql;
         }(),
 
         processWileCached: function(respond, cachedData, callback) {
@@ -40,7 +44,7 @@
 
             // update cache with new value
             alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
-              this.config.tableName, respond.content.DATA, respond.content.HASH, respond.PORTLET_ID, respond.NAME
+              _presets.config.tableName, respond.content.DATA, respond.content.HASH, respond.PORTLET_ID, respond.NAME
             ]);
 
             // and run callback function on this fresh data
@@ -57,7 +61,7 @@
         processWhileNotCached: function(respond, cachedData, callback) {
           // write to cache
           alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-            this.config.tableName, respond.PORTLET_ID, respond.NAME, respond.content.DATA, respond.content.HASH
+            _presets.config.tableName, respond.PORTLET_ID, respond.NAME, respond.content.DATA, respond.content.HASH
           ]);
 
           // run callback function on this data
@@ -68,9 +72,9 @@
 
           // проверить наличие данных в alasql
           var select = alasql.compile('SELECT * FROM ? WHERE PORTLET_ID = ? AND  NAME = ?');
-          select([this.config.tableName, query.portletId, query.configName], function(queryResult) {
+          select([_presets.config.tableName, query.portletId, query.configName], function(queryResult) {
 
-            console.log('SELECT * FROM ' + this.config.tableName + ' WHERE PORTLET_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
+            console.log('SELECT * FROM ' + _presets.config.tableName + ' WHERE PORTLET_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
 
             var cachedData = null;
 
@@ -90,25 +94,26 @@
         } // eof runItem
 
 
-      }, // eof config
+      }; // eof config
 
 
       /*********************************/
       /*         presets.data          */
       /*********************************/
-      data: {
+      _presets.data = {
 
         tableName: 'DATA',
 
         create: function() {
-          return
-           'CREATE TABLE IF NOT EXISTS ' + this.data.tableName + ' ( \
-            ID_' + this.data.tableName + ' INT AUTO_INCREMENT, \
+          var sql =
+           'CREATE TABLE IF NOT EXISTS ' + _presets.data.tableName + ' ( \
+            ID_' + _presets.data.tableName + ' INT AUTO_INCREMENT, \
             PORTLET_ID STRING NOT NULL, \
             WEBPART_ID STRING NOT NULL, \
             DATA JSON NOT NULL, \
-            PRIMARY KEY (ID_' + this.data.tableName + '), \
-            )'
+            PRIMARY KEY (ID_' + _presets.data.tableName + ') \
+            )';
+          return sql;
         }(),
 
         processWileCached: function(respond, cachedData, callback) {
@@ -159,11 +164,13 @@
         } // eof runItem
 
 
-      }
+      };
 
-    };
+    return _presets;
 
   }();
+
+  console.log(presets);
 
   var BaseDataStorage = (function (_dataKind, sharedWebSocket, deepEquals) {
 
@@ -196,7 +203,7 @@
           var item = queue[index];
 
           // create scope so that the correct `index` value is used in callback funciton
-          (function(index, that) {
+          (function(index, that, _dataKind) {
 
             that.presets[_dataKind].runItem(item.query, function(result) {
               console.log(" _runItem callback fired with result:");
@@ -211,7 +218,7 @@
               }
             });
 
-          })(index, this);
+          })(index, this, _dataKind);
           // eof scope
 
           // reset queue
@@ -318,7 +325,6 @@
 
         // find this query
         var index = this._indexOfProperty(query, 'query', queue);
-        console.log(queue);
 
         if (index > -1) {
           // if already present, add another callback function to it
@@ -343,6 +349,8 @@
 
     };
 
+    return _presets;
+
   });
 
   angular.module('dis1App')
@@ -357,14 +365,16 @@
 
     .run(function(configManager) {
 
+
+
       alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
               ATTACH INDEXEDDB DATABASE APP;', [], function() {
                 console.log(new Date() + ' alasql: database APP has been attached');
 
-                  alasql(presets.create.config + ';' + presets.create.config.data);
-                  console.log(new Date() + ' alasql: database APP has been selected, tables created');
-                  configManager.run();
-                  dataManager.run();
+                alasql(presets.config.create + ';' + presets.data.create);
+                console.log(new Date() + ' alasql: database APP has been selected, tables created');
+                configManager.run();
+                dataManager.run();
 
       });
       console.log(new Date() + ' alasql: init request sent');
