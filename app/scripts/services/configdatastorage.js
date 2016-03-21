@@ -89,7 +89,7 @@ angular.module('dis1App')
 
           // when all are processed, proceed to `subscribe`
           if (index === length - 1) {
-            subscribe(websocketQueue);
+            _subscribe(websocketQueue);
           }
         });
 
@@ -97,7 +97,7 @@ angular.module('dis1App')
 
     };
 
-    var subscribe = function(websocketQueue) {
+    var _subscribe = function(websocketQueue) {
 
       console.log(new Date() + " subscribe fired with websocketQueue:");
       console.log(websocketQueue);
@@ -163,6 +163,13 @@ angular.module('dis1App')
       );
 
     };
+
+    var _checkState = function() {
+      var state = sharedWebSocket.readyState();
+      if (!state) {
+        console.log('not ready');
+      }
+    }
 
     var _indexOfProperty = function(needle, propertyName, haystack) {
       var index, length;

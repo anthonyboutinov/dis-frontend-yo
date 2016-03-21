@@ -23,7 +23,7 @@ angular.module('dis1App')
 
     var getNextId = function() {
       return nextId++;
-    }
+    };
 
 
     dataStream.onMessage(function(message) {
@@ -34,6 +34,16 @@ angular.module('dis1App')
     // this.getData = function() {
     //   dataStream.send(JSON.stringify({ action: 'get' }));
     // };
+
+    dataStream.onError(function(message) {
+      console.log(message);
+    });
+
+    this.readyState = function() {
+      var state = dataStream.readyState();
+      console.log('dataStream.readyState = ' + state);
+      return state;
+    };
 
     this.subscribe = function(to, callback) {
 
