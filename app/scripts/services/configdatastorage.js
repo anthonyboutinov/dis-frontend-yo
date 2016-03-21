@@ -64,9 +64,9 @@ angular.module('dis1App')
     };
 
     this.test = function() {
-      this.subscribeToConfig({pageId: 'notCachedPage', configName: 'notCachedConfig'}, function(value){alert(value);});
-      // this.subscribeToConfig({pageId: 'main', configName: 'jumbotron-h1'}, function(value){alert(value);});
-      this.subscribeToConfig({pageId: '222', configName: 'test'}, function(value){alert(value);});
+      this.subscribeToConfig({portletId: 'notCachedPage', configName: 'notCachedConfig'}, function(value){alert(value);});
+      // this.subscribeToConfig({portletId: 'main', configName: 'jumbotron-h1'}, function(value){alert(value);});
+      this.subscribeToConfig({portletId: '222', configName: 'test'}, function(value){alert(value);});
       this.run();
     };
 
@@ -87,10 +87,13 @@ angular.module('dis1App')
       }
     };
 
+    var doWaitForRunCall = true;
+
     var queue = []; // an array of {query, [callback]}
 
     this.run = function() {
       console.log("configDataStorage run event fired");
+      doWaitForRunCall = false;
 
       var websocketQueue = []; // an array of query values
       var callbacksQueue = [];
@@ -118,6 +121,9 @@ angular.module('dis1App')
 
         })(index);
         // eof scope
+
+        // reset queue
+        queue = [];
 
       }
 
@@ -235,14 +241,14 @@ angular.module('dis1App')
 
     var _runItem = function(query, callback) {
 
-      var pageId = query.pageId;
+      var portletId = query.portletId;
       var configName = query.configName;
 
       // проверить наличие данных в alasql
 
       var select = alasql.compile('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?');
-      select([pageId, configName], function(queryResult) {
-        console.log('>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +pageId+ ' AND  NAME = ' + configName);
+      select([portletId, configName], function(queryResult) {
+        console.log('>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +portletId+ ' AND  NAME = ' + configName);
 
         var cachedData = null;
 
@@ -264,8 +270,8 @@ angular.module('dis1App')
     this.subscribeToConfig = function(query, callback) {
 
       // // Check input parameters
-      // if (typeof(pageId) !== 'string') {
-      //   throw Error("Invalid argument: pageId must be a string");
+      // if (typeof(portletId) !== 'string') {
+      //   throw Error("Invalid argument: portletId must be a string");
       // }
       // if (typeof(configName) !== 'string') {
       //   throw Error("Invalid argument: configName must be a string");
@@ -288,6 +294,10 @@ angular.module('dis1App')
       }
 
       console.log(queue);
+
+      if (doWaitForRunCall === false) {
+        this.run();
+      }
 
     };
 

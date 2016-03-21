@@ -12,9 +12,11 @@ angular.module('dis1App')
 
     $scope.name = "Prototype";
 
-    $scope.config = {};
 
-    configDataStorage.subscribeToConfig({pageId: 'main', configName: 'styling'}, function(config) {
+
+    $scope.config = null;
+
+    configDataStorage.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
       $scope.$apply(function(){
         $scope.config = config;
       });
