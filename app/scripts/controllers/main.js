@@ -8,10 +8,12 @@
  * Controller of the dis1App
  */
 angular.module('dis1App')
-  .controller('MainCtrl', function () {
-    this.awesomeThings = [
-      'HTML5 Boilerplate',
-      'AngularJS',
-      'Karma'
-    ];
+  .controller('MainCtrl', function ($scope, configDataStorage) {
+
+    $scope.config = {};
+
+    configDataStorage.getConfig({pageId: 'main', configName: 'styling'}, function(config) {
+      $scope.config = config;
+    });
+
   });

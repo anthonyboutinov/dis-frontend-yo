@@ -8,7 +8,7 @@
  * Service in the dis1App.
  */
 angular.module('dis1App')
-  .run(function() {
+  .run(function(configDataStorage) {
 
   alasql.options.angularjs = true;
   alasql.options.errorlog = false; // Log or throw error
@@ -32,6 +32,8 @@ angular.module('dis1App')
                   UNIQUE(PAGE_ID, NAME) \
                 );');
                 console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
+                configDataStorage.run();
+                
     });
     console.log(new Date() + ' alasql: init request sent');
 
@@ -52,10 +54,18 @@ angular.module('dis1App')
       alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
         '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
       ]);
+      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        'main', 'styling', {
+          h1: {
+            color: '#66afe9'
+          }
+        }, '000000'
+      ]);
     };
 
     this.test = function() {
-      this.getConfig({pageId: 'homepage', configName: 'test'}, function(value){alert(value);});
+      this.getConfig({pageId: 'notCachedPage', configName: 'notCachedConfig'}, function(value){alert(value);});
+      // this.getConfig({pageId: 'main', configName: 'jumbotron-h1'}, function(value){alert(value);});
       this.getConfig({pageId: '222', configName: 'test'}, function(value){alert(value);});
       this.run();
     };
@@ -80,6 +90,7 @@ angular.module('dis1App')
     var queue = []; // an array of {query, [callback]}
 
     this.run = function() {
+      console.log("configDataStorage run event fired");
 
       var websocketQueue = []; // an array of query values
       var cachedDataQueue = []; // an array of cachedData
@@ -92,7 +103,7 @@ angular.module('dis1App')
         (function(index) {
 
           _runItem(item.query, function(result) {
-            console.log(new Date() + " _runItem callback fired with result:");
+            console.log(" _runItem callback fired with result:");
             console.log(result);
             websocketQueue.push(result.query);
             cachedDataQueue.push(result.cachedData);
@@ -112,7 +123,7 @@ angular.module('dis1App')
 
     var _subscribe = function(websocketQueue, cachedDataQueue) {
 
-      console.log(new Date() + " subscribe fired with websocketQueue:");
+      console.log(" subscribe fired with websocketQueue:");
       console.log(websocketQueue);
 
       sharedWebSocket.subscribe(
@@ -203,7 +214,7 @@ angular.module('dis1App')
 
       var select = alasql.compile('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?');
       select([pageId, configName], function(queryResult) {
-        console.log(new Date() + '>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +pageId+ ' AND  NAME = ' + configName);
+        console.log('>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +pageId+ ' AND  NAME = ' + configName);
 
         var cachedData = null;
 
