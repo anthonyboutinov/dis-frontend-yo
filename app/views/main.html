@@ -4,5 +4,9 @@
     <p class="lead">
       {{config}}
     </p>
+    <ul class="list-inline">
+      <li ng-repeat="value in data.some track by $index">{{value}}</li>
+    </ul>
+    <p>{{data}}</p>
   </div>
 </div>

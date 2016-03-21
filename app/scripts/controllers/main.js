@@ -8,18 +8,42 @@
  * Controller of the dis1App
  */
 angular.module('dis1App')
-  .controller('MainCtrl', function ($scope, configDataStorage) {
+  .controller('MainCtrl', function ($scope, configManager) {
 
     $scope.name = "Prototype";
 
 
 
-    $scope.config = null;
+    $scope.config = {};
 
-    configDataStorage.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
+    configManager.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
       $scope.$apply(function(){
         $scope.config = config;
       });
+    });
+
+
+
+    $scope.data = {
+      some: [42, 43, 57, 73, 14, 13, 64, 62]
+    };
+
+    configManager.subscribeToData({
+      portletId: 'main',
+      webPartId: 'main',
+      params: {
+        param1: 'value1',
+        param2: 'value2'
+      }
+    }, function(newData) {
+
+      $scope.$apply(function(){
+        if (typeof($scope.data.some) === "undefined") {
+          $scope.data.some = [];
+        }
+        $scope.data.some.push(newData);
+      });
+
     });
 
   });
