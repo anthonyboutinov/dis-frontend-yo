@@ -8,7 +8,7 @@
  * Controller of the dis1App
  */
 angular.module('dis1App')
-  .controller('MainCtrl', function ($scope, configManager) {
+  .controller('MainCtrl', function ($scope, dataManager, configManager) {
 
     $scope.name = "Prototype";
 

@@ -10,88 +10,160 @@
 
 (function() {
 
-  var presets = {
+  var presets = function() {
 
-    config: {
+    return {
 
-      tableName: 'CONFIG',
+      /*********************************/
+      /*        presets.config         */
+      /*********************************/
+      config: {
 
-      create:
-       'CREATE TABLE IF NOT EXISTS ' + this.data.tableName + ' ( \
-        ID_' + this.data.tableName + ' INT AUTO_INCREMENT, \
-        PAGE_ID STRING NOT NULL, \
-        NAME STRING NOT NULL, \
-        DATA JSON NOT NULL, \
-        HASH STRING NOT NULL, \
-        PRIMARY KEY (ID_CONFIG), \
-        UNIQUE(PAGE_ID, NAME) \
-      )',
+        tableName: 'CONFIG',
 
-      processWileCached: function(respond, cachedData, callback) {
-        // if not already up to date
-        if (respond.content !== 'alreadyUpToDate') {
+        create: function() {
+          return
+           'CREATE TABLE IF NOT EXISTS ' + this.config.tableName + ' ( \
+            ID_' + this.config.tableName + ' INT AUTO_INCREMENT, \
+            PORTLET_ID STRING NOT NULL, \
+            NAME STRING NOT NULL, \
+            DATA JSON NOT NULL, \
+            HASH STRING NOT NULL, \
+            PRIMARY KEY (ID_' + this.config.tableName + '), \
+            UNIQUE(PORTLET_ID, NAME) \
+            )'
+        }(),
+
+        processWileCached: function(respond, cachedData, callback) {
+          // if not already up to date
+          if (respond.content !== 'alreadyUpToDate') {
+
+            // update cache with new value
+            alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
+              this.config.tableName, respond.content.DATA, respond.content.HASH, respond.PORTLET_ID, respond.NAME
+            ]);
+
+            // and run callback function on this fresh data
+            callback(respond.content.DATA);
+
+          }
+          // if cached data IS up to date
+          else {
+            // run callback function on cached data
+            callback(cachedData);
+          }
+        },
+
+        processWhileNotCached: function(respond, cachedData, callback) {
+          // write to cache
+          alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+            this.config.tableName, respond.PORTLET_ID, respond.NAME, respond.content.DATA, respond.content.HASH
+          ]);
+
+          // run callback function on this data
+          callback(respond.content.DATA);
+        },
+
+        runItem: function(query, callback) {
+
+          // проверить наличие данных в alasql
+          var select = alasql.compile('SELECT * FROM ? WHERE PORTLET_ID = ? AND  NAME = ?');
+          select([this.config.tableName, query.portletId, query.configName], function(queryResult) {
+
+            console.log('SELECT * FROM ' + this.config.tableName + ' WHERE PORTLET_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
+
+            var cachedData = null;
+
+            if (queryResult.length === 1) {
+              // Add hash value to the query
+              query.hash = queryResult[0].HASH;
+              // Get cached data
+              cachedData = queryResult[0].DATA;
+            }
+
+            callback({
+              query: query,
+              cachedData: cachedData
+            });
+          });
+
+        } // eof runItem
+
+
+      }, // eof config
+
+
+      /*********************************/
+      /*         presets.data          */
+      /*********************************/
+      data: {
+
+        tableName: 'DATA',
+
+        create: function() {
+          return
+           'CREATE TABLE IF NOT EXISTS ' + this.data.tableName + ' ( \
+            ID_' + this.data.tableName + ' INT AUTO_INCREMENT, \
+            PORTLET_ID STRING NOT NULL, \
+            WEBPART_ID STRING NOT NULL, \
+            DATA JSON NOT NULL, \
+            PRIMARY KEY (ID_' + this.data.tableName + '), \
+            )'
+        }(),
+
+        processWileCached: function(respond, cachedData, callback) {
 
           // update cache with new value
-          alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
-            this.data.tableName, respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
-          ]);
+          // alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PORTLET_ID = ? AND NAME = ?', [
+          //   this.data.tableName, respond.content.DATA, respond.content.HASH, respond.PORTLET_ID, respond.NAME
+          // ]);
 
           // and run callback function on this fresh data
           callback(respond.content.DATA);
 
-        }
-        // if cached data IS up to date
-        else {
-          // run callback function on cached data
-          callback(cachedData);
-        }
-      },
+        },
 
-      processWhileNotCached: function(respond, cachedData, callback) {
-        // write to cache
-        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-          this.data.tableName, respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
-        ]);
+        processWhileNotCached: function(respond, cachedData, callback) {
+          // write to cache
+          // alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+          //   this.data.tableName, respond.PORTLET_ID, respond.NAME, respond.content.DATA, respond.content.HASH
+          // ]);
 
-        // run callback function on this data
-        callback(respond.content.DATA);
-      },
+          // run callback function on this data
+          callback(respond.content.DATA);
+        },
 
-      runItem: function(query, callback) {
+        runItem: function(query, callback) {
 
-        // проверить наличие данных в alasql
-        var select = alasql.compile('SELECT * FROM ? WHERE PAGE_ID = ? AND  NAME = ?');
-        select([this.data.tableName, query.portletId, query.configName], function(queryResult) {
+          // проверить наличие данных в alasql
+          // var select = alasql.compile('SELECT * FROM ? WHERE PORTLET_ID = ? AND  NAME = ?');
+          // select([this.config.tableName, query.portletId, query.configName], function(queryResult) {
+          //
+          //   console.log('SELECT * FROM ' + this.config.tableName + ' WHERE PORTLET_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
+          //
+          //   var cachedData = null;
+          //
+          //   if (queryResult.length === 1) {
+          //     // Add hash value to the query
+          //     query.hash = queryResult[0].HASH;
+          //     // Get cached data
+          //     cachedData = queryResult[0].DATA;
+          //   }
 
-          console.log('SELECT * FROM ' + this.data.tableName + ' WHERE PAGE_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
+            callback({
+              query: query,
+              cachedData: null
+            });
+          // });
 
-          var cachedData = null;
+        } // eof runItem
 
-          if (queryResult.length === 1) {
-            // Add hash value to the query
-            query.hash = queryResult[0].HASH;
-            // Get cached data
-            cachedData = queryResult[0].DATA;
-          }
 
-          callback({
-            query: query,
-            cachedData: cachedData
-          });
-        });
+      }
 
-      } // eof runItem
+    };
 
-    }, // eof config
-
-    data: {
-      tableName: 'DATA',
-      create:
-       'CREATE TABLE IF NOT EXISTS ' + this.config.tableName
-      select: ''
-    }
-
-  };
+  }();
 
   var BaseDataStorage = (function (_dataKind, sharedWebSocket, deepEquals) {
 
@@ -198,7 +270,7 @@
 
 
               // if data is present in cache
-              if (cachedData !== null) {
+              if (typeof(cachedData) !== "undefined" && cachedData !== null) {
                 _processWhileCached(respond, cachedData, callback);
               } else {
                 _processWhileNotCached(respond, cachedData, callback);
@@ -215,7 +287,7 @@
         for (var index = 0, length = cachedDataQueue.length; index < length; index++) {
 
           var cachedData = cachedDataQueue[index];
-          if (cachedData !== null) {
+          if (typeof(cachedData) !== "undefined" && cachedData !== null) {
             callbacksQueue[index].forEach(function(callback) {
               callback(cachedData);
             });
@@ -306,11 +378,11 @@
       // methods and properties that are unique to this subclass
       configManager.populate = function() {
 
-        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
           tableName,
           '222', 'test', {width: '100%', height: '400px'}, 'hashValueComputedOnServer'
         ]);
-        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
           tableName,
           'main', 'styling', {
             h1: {
