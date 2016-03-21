@@ -12,16 +12,13 @@
 
   var presets = {
 
-    tableNames: {
-      config: 'CONFIG',
-      data: 'DATA'
-    },
+    config: {
 
-    create: {
+      tableName: 'CONFIG',
 
-      config:
-       'CREATE TABLE IF NOT EXISTS ' + this.tableNames.config + ' ( \
-        ID_' + this.tableNames.config + ' INT AUTO_INCREMENT, \
+      create:
+       'CREATE TABLE IF NOT EXISTS ' + this.data.tableName + ' ( \
+        ID_' + this.data.tableName + ' INT AUTO_INCREMENT, \
         PAGE_ID STRING NOT NULL, \
         NAME STRING NOT NULL, \
         DATA JSON NOT NULL, \
@@ -30,22 +27,75 @@
         UNIQUE(PAGE_ID, NAME) \
       )',
 
-      data:
-       'CREATE TABLE IF NOT EXISTS ' + this.tableNames.data + ' \
-      '
+      processWileCached: function(respond, cachedData, callback) {
+        // if not already up to date
+        if (respond.content !== 'alreadyUpToDate') {
+
+          // update cache with new value
+          alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
+            this.data.tableName, respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
+          ]);
+
+          // and run callback function on this fresh data
+          callback(respond.content.DATA);
+
+        }
+        // if cached data IS up to date
+        else {
+          // run callback function on cached data
+          callback(cachedData);
+        }
+      },
+
+      processWhileNotCached: function(respond, cachedData, callback) {
+        // write to cache
+        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+          this.data.tableName, respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
+        ]);
+
+        // run callback function on this data
+        callback(respond.content.DATA);
+      },
+
+      runItem: function(query, callback) {
+
+        // проверить наличие данных в alasql
+        var select = alasql.compile('SELECT * FROM ? WHERE PAGE_ID = ? AND  NAME = ?');
+        select([this.data.tableName, query.portletId, query.configName], function(queryResult) {
+
+          console.log('SELECT * FROM ' + this.data.tableName + ' WHERE PAGE_ID = ' + query.portletId + ' AND  NAME = ' + query.configName + ':');
+
+          var cachedData = null;
+
+          if (queryResult.length === 1) {
+            // Add hash value to the query
+            query.hash = queryResult[0].HASH;
+            // Get cached data
+            cachedData = queryResult[0].DATA;
+          }
+
+          callback({
+            query: query,
+            cachedData: cachedData
+          });
+        });
+
+      } // eof runItem
+
+    }, // eof config
+
+    data: {
+      tableName: 'DATA',
+      create:
+       'CREATE TABLE IF NOT EXISTS ' + this.config.tableName
+      select: ''
     }
 
   };
 
-  var BaseDataStorage = (function (
-    sharedWebSocket,
-    deepEquals,
+  var BaseDataStorage = (function (_dataKind, sharedWebSocket, deepEquals) {
 
-    _dataKind,
-    _tableName,
-    _processWhileCached,
-    _processWhileNotCached
-  ) {
+    var _tableName = presets[_dataKind].tableName;
 
     var doWaitForRunCall = true;
 
@@ -76,7 +126,7 @@
           // create scope so that the correct `index` value is used in callback funciton
           (function(index, that) {
 
-            that._runItem(item.query, function(result) {
+            that.presets[_dataKind].runItem(item.query, function(result) {
               console.log(" _runItem callback fired with result:");
               console.log(result);
               websocketQueue.push(result.query);
@@ -184,34 +234,6 @@
         return -1;
       },
 
-      _runItem: function(query, callback) {
-
-        var portletId = query.portletId;
-        var configName = query.configName;
-
-        // проверить наличие данных в alasql
-
-        var select = alasql.compile('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?');
-        select([portletId, configName], function(queryResult) {
-          console.log('>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +portletId+ ' AND  NAME = ' + configName);
-
-          var cachedData = null;
-
-          if (queryResult.length === 1) {
-            // Add hash value to the query
-            query.hash = queryResult[0].HASH;
-            // Get cached data
-            cachedData = queryResult[0].DATA;
-          }
-
-          callback({
-            query: query,
-            cachedData: cachedData
-          });
-        });
-
-      },
-
       subscribe: function(query, callback) {
 
         // // Check input parameters
@@ -252,6 +274,7 @@
   });
 
   angular.module('dis1App')
+
     .config(function() {
       alasql.options.angularjs = true;
       alasql.options.errorlog = false; // Log or throw error
@@ -259,73 +282,36 @@
       alasql.options.logprompt = true; // Print SQL at log
       alasql.options.columnlookup = 10; // How many rows to lookup to define columns
     })
+
     .run(function(configManager) {
 
       alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
               ATTACH INDEXEDDB DATABASE APP;', [], function() {
                 console.log(new Date() + ' alasql: database APP has been attached');
 
-                  alasql('USE APP;\
-                    CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
-                    ID_CONFIG_DATA INT AUTO_INCREMENT, \
-                    PAGE_ID STRING NOT NULL, \
-                    NAME STRING NOT NULL, \
-                    DATA JSON NOT NULL, \
-                    HASH STRING NOT NULL, \
-                    PRIMARY KEY (ID_CONFIG_DATA), \
-                    UNIQUE(PAGE_ID, NAME) \
-                  );');
-                  console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
+                  alasql(presets.create.config + ';' + presets.create.config.data);
+                  console.log(new Date() + ' alasql: database APP has been selected, tables created');
                   configManager.run();
+                  dataManager.run();
 
       });
       console.log(new Date() + ' alasql: init request sent');
 
     })
+
     .factory('configManager', function(sharedWebSocket, deepEquals) {
 
-      var dataKind = 'config';
-      var tableName = 'CONFIG_DATA';
+      var configManager = Object.create(BaseDataStorage('config', sharedWebSocket, deepEquals));
 
-      var processWileCached = function(respond, cachedData, callback) {
-        // if not already up to date
-        if (respond.content !== 'alreadyUpToDate') {
-
-          // update cache with new value
-          alasql('UPDATE ? SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
-            tableName, respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
-          ]);
-
-          // and run callback function on this fresh data
-          callback(respond.content.DATA);
-
-        }
-        // if cached data IS up to date
-        else {
-          // run callback function on cached data
-          callback(cachedData);
-        }
-      };
-
-      var processWhileNotCached = function(respond, cachedData, callback) {
-        // write to cache
-        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-          tableName, respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
-        ]);
-
-        // run callback function on this data
-        callback(respond.content.DATA);
-      }
-
-      var configManager = Object.create(BaseDataStorage(sharedWebSocket, deepEquals, dataKind, tableName, processWileCached, processWhileNotCached));
-
-
+      // methods and properties that are unique to this subclass
       configManager.populate = function() {
 
-        alasql('INSERT INTO (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+          tableName,
           '222', 'test', {width: '100%', height: '400px'}, 'hashValueComputedOnServer'
         ]);
-        alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+        alasql('INSERT INTO ? (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+          tableName,
           'main', 'styling', {
             h1: {
               color: '#66afe9'
@@ -339,13 +325,10 @@
 
     }).factory('dataManager', function(sharedWebSocket, deepEquals) {
 
-      var dataKind = 'data';
-      var tableName = 'DATA';
-      var configManager = Object.create(BaseDataStorage(sharedWebSocket, deepEquals, dataKind, tableName));
+      var configManager = Object.create(BaseDataStorage('data', sharedWebSocket, deepEquals));
 
-      configManager.more = function() {
-
-      };
+      // methods and properties that are unique to this subclass
+      // ...
 
       return configManager;
     });
