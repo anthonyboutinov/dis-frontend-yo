@@ -33,7 +33,7 @@ angular.module('dis1App')
                 );');
                 console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
                 configDataStorage.run();
-                
+
     });
     console.log(new Date() + ' alasql: init request sent');
 
@@ -52,21 +52,21 @@ angular.module('dis1App')
 
     this.populate = function() {
       alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-        '222', 'test', {width: '100%', height: '400px'}, 'JFSKL3rfs'
+        '222', 'test', {width: '100%', height: '400px'}, 'hashValueComputedOnServer'
       ]);
       alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
         'main', 'styling', {
           h1: {
             color: '#66afe9'
           }
-        }, '000000'
+        }, 'hashValueComputedOnServer'
       ]);
     };
 
     this.test = function() {
-      this.getConfig({pageId: 'notCachedPage', configName: 'notCachedConfig'}, function(value){alert(value);});
-      // this.getConfig({pageId: 'main', configName: 'jumbotron-h1'}, function(value){alert(value);});
-      this.getConfig({pageId: '222', configName: 'test'}, function(value){alert(value);});
+      this.subscribeToConfig({pageId: 'notCachedPage', configName: 'notCachedConfig'}, function(value){alert(value);});
+      // this.subscribeToConfig({pageId: 'main', configName: 'jumbotron-h1'}, function(value){alert(value);});
+      this.subscribeToConfig({pageId: '222', configName: 'test'}, function(value){alert(value);});
       this.run();
     };
 
@@ -93,6 +93,7 @@ angular.module('dis1App')
       console.log("configDataStorage run event fired");
 
       var websocketQueue = []; // an array of query values
+      var callbacksQueue = [];
       var cachedDataQueue = []; // an array of cachedData
 
       var index, length;
@@ -106,11 +107,12 @@ angular.module('dis1App')
             console.log(" _runItem callback fired with result:");
             console.log(result);
             websocketQueue.push(result.query);
+            callbacksQueue.push(item.callback);
             cachedDataQueue.push(result.cachedData);
 
             // when all are processed, proceed to `subscribe`
             if (index === length - 1) {
-              _subscribe(websocketQueue, cachedDataQueue);
+              _subscribe(websocketQueue, callbacksQueue, cachedDataQueue);
             }
           });
 
@@ -121,10 +123,28 @@ angular.module('dis1App')
 
     };
 
-    var _subscribe = function(websocketQueue, cachedDataQueue) {
+    var _subscribe = function(websocketQueue, callbacksQueue, cachedDataQueue) {
 
       console.log(" subscribe fired with websocketQueue:");
       console.log(websocketQueue);
+
+      if (_isConnectionEstablished()) {
+        _subscribeWithWebSocket(websocketQueue, callbacksQueue, cachedDataQueue);
+      } else {
+        _fireCallbacksForCachedData(callbacksQueue, cachedDataQueue);
+      }
+
+    };
+
+    var _isConnectionEstablished = function() {
+      var state = sharedWebSocket.readyState();
+      if (state === 3 /* NO CONNECTION */) {
+        return false;
+      }
+      return true;
+    };
+
+    var _subscribeWithWebSocket = function(websocketQueue, callbacksQueue, cachedDataQueue) {
 
       sharedWebSocket.subscribe(
         {
@@ -143,9 +163,9 @@ angular.module('dis1App')
               }
             */
 
-            // find and retrieve callback function for this item in `queue` array
-            var indexInQueue = _indexOfProperty(respond.query, 'query', queue);
-            var callback = queue[indexInQueue].callback;
+            // find and retrieve callback function for this item
+            var indexInQueue = _indexOfProperty(respond.query, 'query', websocketQueue);
+            var callback = callbacksQueue[indexInQueue];
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
             var cachedData = cachedDataQueue[indexInQueue];
@@ -182,17 +202,25 @@ angular.module('dis1App')
               // run callback function on this data
               callback(respond.content.DATA);
             }
-          }
-        }
-      );
+
+          } // eof for loop
+        } // eof callback
+      ); // eof sharedWebSocket.subscribe
 
     };
 
-    var _checkState = function() {
-      var state = sharedWebSocket.readyState();
-      if (!state) {
-        console.log('not ready');
+    var _fireCallbacksForCachedData = function (callbacksQueue, cachedDataQueue) {
+
+      for (var index = 0, length = cachedDataQueue.length; index < length; index++) {
+
+        var cachedData = cachedDataQueue[index];
+        if (cachedData !== null) {
+          callbacksQueue[index].forEach(function(callback) {
+            callback(cachedData);
+          });
+        }
       }
+
     };
 
     var _indexOfProperty = function(needle, propertyName, haystack) {
@@ -233,7 +261,7 @@ angular.module('dis1App')
 
     };
 
-    this.getConfig = function(query, callback) {
+    this.subscribeToConfig = function(query, callback) {
 
       // // Check input parameters
       // if (typeof(pageId) !== 'string') {

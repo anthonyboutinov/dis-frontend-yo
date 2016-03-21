@@ -40,7 +40,7 @@ angular.module('dis1App')
     });
 
     this.readyState = function() {
-      var state = dataStream.readyState();
+      var state = dataStream.readyState;
       console.log('dataStream.readyState = ' + state);
       return state;
     };
