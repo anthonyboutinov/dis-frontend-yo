@@ -26,15 +26,15 @@
         tableName: 'CONFIG',
 
         create: function() {
-          var sql = 'CREATE TABLE IF NOT EXISTS ' + _presets.config.tableName + ' ( \
-           ID_' + _presets.config.tableName + ' INT AUTO_INCREMENT, \
-           PORTLET_ID STRING NOT NULL, \
-           NAME STRING NOT NULL, \
-           DATA JSON NOT NULL, \
-           HASH STRING NOT NULL, \
-           PRIMARY KEY (ID_' + _presets.config.tableName + '), \
-           UNIQUE(PORTLET_ID, NAME) \
-           )';
+          var sql = 'CREATE TABLE IF NOT EXISTS ' + _presets.config.tableName;// + ' ( \
+          //  ID_' + _presets.config.tableName + ' INT AUTO_INCREMENT, \
+          //  PORTLET_ID STRING NOT NULL, \
+          //  NAME STRING NOT NULL, \
+          //  DATA JSON NOT NULL, \
+          //  HASH STRING NOT NULL, \
+          //  PRIMARY KEY (ID_' + _presets.config.tableName + '), \
+          //  UNIQUE(PORTLET_ID, NAME) \
+          //  )';
           return sql;
         }(),
 
@@ -68,7 +68,7 @@
           callback(respond.content.DATA);
         },
 
-        runItem: function(query, callback) {
+        runItem: function(query, callback, index) {
 
           // проверить наличие данных в alasql
           var select = alasql.compile('SELECT * FROM ? WHERE PORTLET_ID = ? AND  NAME = ?');
@@ -91,6 +91,8 @@
             });
           });
 
+          return index;
+
         } // eof runItem
 
 
@@ -106,13 +108,13 @@
 
         create: function() {
           var sql =
-           'CREATE TABLE IF NOT EXISTS ' + _presets.data.tableName + ' ( \
-            ID_' + _presets.data.tableName + ' INT AUTO_INCREMENT, \
-            PORTLET_ID STRING NOT NULL, \
-            WEBPART_ID STRING NOT NULL, \
-            DATA JSON NOT NULL, \
-            PRIMARY KEY (ID_' + _presets.data.tableName + ') \
-            )';
+           'CREATE TABLE IF NOT EXISTS ' + _presets.data.tableName;// + ' ( \
+            // ID_' + _presets.data.tableName + ' INT AUTO_INCREMENT, \
+            // PORTLET_ID STRING NOT NULL, \
+            // WEBPART_ID STRING NOT NULL, \
+            // DATA JSON NOT NULL, \
+            // PRIMARY KEY (ID_' + _presets.data.tableName + ') \
+            // )';
           return sql;
         }(),
 
@@ -138,7 +140,7 @@
           callback(respond.content.DATA);
         },
 
-        runItem: function(query, callback) {
+        runItem: function(query, callback, index) {
 
           // проверить наличие данных в alasql
           // var select = alasql.compile('SELECT * FROM ? WHERE PORTLET_ID = ? AND  NAME = ?');
@@ -159,6 +161,8 @@
               query: query,
               cachedData: null
             });
+
+            return index;
           // });
 
         } // eof runItem
@@ -191,8 +195,10 @@
       },
 
       run: function() {
-        console.log("configManager run event fired");
+        console.log(_dataKind + "Manager run event fired");
         doWaitForRunCall = false;
+
+        // var runItem = ;
 
         var websocketQueue = []; // an array of query values
         var callbacksQueue = [];
@@ -203,22 +209,23 @@
           var item = queue[index];
 
           // create scope so that the correct `index` value is used in callback funciton
-          (function(index, that, _dataKind) {
+          // (function(index, runItem, subscribe) {
 
-            that.presets[_dataKind].runItem(item.query, function(result) {
-              console.log(" _runItem callback fired with result:");
-              console.log(result);
-              websocketQueue.push(result.query);
-              callbacksQueue.push(item.callback);
-              cachedDataQueue.push(result.cachedData);
+          var that = this;
+          presets[_dataKind].runItem(item.query, function(result) {
+            console.log(" _runItem callback fired with result:");
+            console.log(result);
+            websocketQueue.push(result.query);
+            callbacksQueue.push(item.callback);
+            cachedDataQueue.push(result.cachedData);
 
-              // when all are processed, proceed to `subscribe`
-              if (index === length - 1) {
-                that._subscribe(websocketQueue, callbacksQueue, cachedDataQueue);
-              }
-            });
+            // when all are processed, proceed to `subscribe`
+            if (index === length - 1) {
+              that._subscribe(websocketQueue, callbacksQueue, cachedDataQueue);
+            }
+          });
 
-          })(index, this, _dataKind);
+          // })(index, presets[_dataKind].runItem, this._subscribe);
           // eof scope
 
           // reset queue
@@ -357,27 +364,42 @@
 
     .config(function() {
       alasql.options.angularjs = true;
-      alasql.options.errorlog = false; // Log or throw error
-      alasql.options.casesensitive = true; // Table and column names are case sensitive and converted to lower-case
-      alasql.options.logprompt = true; // Print SQL at log
-      alasql.options.columnlookup = 10; // How many rows to lookup to define columns
+      alasql.options.errorlog = true; // Log or throw error
+      // alasql.options.casesensitive = true; // Table and column names are case sensitive and converted to lower-case
+      // alasql.options.logprompt = true; // Print SQL at log
+      // alasql.options.columnlookup = 10; // How many rows to lookup to define columns
     })
 
-    .run(function(configManager) {
-
-
+    .run(function(configManager, dataManager) {
 
       alasql('CREATE INDEXEDDB DATABASE IF NOT EXISTS APP; \
               ATTACH INDEXEDDB DATABASE APP;', [], function() {
-                console.log(new Date() + ' alasql: database APP has been attached');
+              console.log(new Date() + ' alasql: database APP has been attached');
 
-                alasql(presets.config.create + ';' + presets.data.create);
-                console.log(new Date() + ' alasql: database APP has been selected, tables created');
+                alasql('USE APP;\
+                  CREATE TABLE IF NOT EXISTS CONFIG ( \
+                  ID_CONFIG INT AUTO_INCREMENT, \
+                  PORTLET_ID STRING NOT NULL, \
+                  NAME STRING NOT NULL, \
+                  DATA JSON NOT NULL, \
+                  HASH STRING NOT NULL, \
+                  PRIMARY KEY (ID_CONFIG), \
+                  UNIQUE(PORTLET_ID, NAME) \
+                );');
+                alasql('\
+                  CREATE TABLE IF NOT EXISTS DATA ( \
+                  ID_DATA INT AUTO_INCREMENT, \
+                  PORTLET_ID STRING NOT NULL, \
+                  WEBPART_ID STRING NOT NULL, \
+                  DATA JSON NOT NULL, \
+                  PRIMARY KEY (ID_CONFIG) \
+                );');
+                console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
                 configManager.run();
                 dataManager.run();
 
-      });
-      console.log(new Date() + ' alasql: init request sent');
+    });
+    console.log(new Date() + ' alasql: init request sent');
 
     })
 
@@ -388,12 +410,11 @@
       // methods and properties that are unique to this subclass
       configManager.populate = function() {
 
-        alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-          tableName,
+        // var tableName = presets.config.tableName;
+        alasql('INSERT INTO CONFIG (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
           '222', 'test', {width: '100%', height: '400px'}, 'hashValueComputedOnServer'
         ]);
-        alasql('INSERT INTO ? (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-          tableName,
+        alasql('INSERT INTO CONFIG (PORTLET_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
           'main', 'styling', {
             h1: {
               color: '#66afe9'
