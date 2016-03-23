@@ -119,16 +119,12 @@ angular.module('dis1App')
 
             // when all are processed, proceed to `subscribe`
             if (index === length - 1) {
+              queue = [];
               _subscribe(websocketQueue, callbacksQueue, cachedDataQueue);
             }
           });
 
-        })(index, item);
-        // eof scope
-
-        // reset queue
-        queue = [];
-
+        })(index, item); // eof scope
       }
 
     };
