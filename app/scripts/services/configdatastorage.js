@@ -108,7 +108,7 @@ angular.module('dis1App')
         var item = queue[index];
 
         // create scope so that the correct `index` value is used in callback funciton
-        (function(index) {
+        (function(index, item) {
 
           _runItem(item.query, function(result) {
             console.log(" _runItem callback fired with result:");
@@ -123,7 +123,7 @@ angular.module('dis1App')
             }
           });
 
-        })(index);
+        })(index, item);
         // eof scope
 
         // reset queue
