@@ -22,16 +22,16 @@ angular.module('dis1App')
               console.log(new Date() + ' alasql: database APP has been attached');
 
                 alasql('USE APP;\
-                  CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
-                  ID_CONFIG_DATA INT AUTO_INCREMENT, \
+                  CREATE TABLE IF NOT EXISTS CONFIG ( \
+                  ID_CONFIG INT AUTO_INCREMENT, \
                   PAGE_ID STRING NOT NULL, \
                   NAME STRING NOT NULL, \
                   DATA JSON NOT NULL, \
                   HASH STRING NOT NULL, \
-                  PRIMARY KEY (ID_CONFIG_DATA), \
+                  PRIMARY KEY (ID_CONFIG), \
                   UNIQUE(PAGE_ID, NAME) \
                 );');
-                console.log(new Date() + ' alasql: database APP has been selected, table CONFIG_DATA has been created');
+                console.log(new Date() + ' alasql: database APP has been selected, table CONFIG has been created');
                 configDataStorage.run();
 
     });
@@ -47,14 +47,14 @@ angular.module('dis1App')
     };
 
     this.drop = function() {
-      alasql('DROP TABLE CONFIG_DATA;');
+      alasql('DROP TABLE CONFIG;');
     };
 
     this.populate = function() {
-      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+      alasql('INSERT INTO CONFIG (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
         '222', 'test', {width: '100%', height: '400px'}, 'hashValueComputedOnServer'
       ]);
-      alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+      alasql('INSERT INTO CONFIG (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
         'main', 'styling', {
           h1: {
             color: '#66afe9'
@@ -71,23 +71,27 @@ angular.module('dis1App')
     };
 
     this.createTable = function() {
-      var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG_DATA ( \
-        ID_CONFIG_DATA INT AUTO_INCREMENT, \
+      var res = alasql('CREATE TABLE IF NOT EXISTS CONFIG ( \
+        ID_CONFIG INT AUTO_INCREMENT, \
         PAGE_ID STRING NOT NULL, \
         NAME STRING NOT NULL, \
         DATA JSON NOT NULL, \
         HASH STRING NOT NULL, \
-        PRIMARY KEY (ID_CONFIG_DATA), \
+        PRIMARY KEY (ID_CONFIG), \
         UNIQUE(PAGE_ID, NAME) \
       );');
       if (res === 0) {
-        console.log('alasql: table CONFIG_DATA is already present');
+        console.log('alasql: table CONFIG is already present');
       } else {
-        console.log('alasql: table CONFIG_DATA has been created');
+        console.log('alasql: table CONFIG has been created');
       }
     };
 
     var doWaitForRunCall = true;
+
+    this.doWaitForRun = function() {
+      doWaitForRunCall = true;
+    }
 
     var queue = []; // an array of {query, [callback]}
 
@@ -184,7 +188,7 @@ angular.module('dis1App')
               if (respond.content !== 'alreadyUpToDate') {
 
                 // update cache with new value
-                alasql('UPDATE CONFIG_DATA SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
+                alasql('UPDATE CONFIG SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
                   respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
                 ]);
 
@@ -201,7 +205,7 @@ angular.module('dis1App')
             // if there is no entry in the cache
             else {
               // write to cache
-              alasql('INSERT INTO CONFIG_DATA (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
+              alasql('INSERT INTO CONFIG (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
                 respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
               ]);
 
@@ -246,9 +250,9 @@ angular.module('dis1App')
 
       // проверить наличие данных в alasql
 
-      var select = alasql.compile('SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ? AND  NAME = ?');
+      var select = alasql.compile('SELECT * FROM CONFIG WHERE PAGE_ID = ? AND  NAME = ?');
       select([portletId, configName], function(queryResult) {
-        console.log('>> SELECT * FROM CONFIG_DATA WHERE PAGE_ID = ' +portletId+ ' AND  NAME = ' + configName);
+        console.log('>> SELECT * FROM CONFIG WHERE PAGE_ID = ' +portletId+ ' AND  NAME = ' + configName);
 
         var cachedData = null;
 
