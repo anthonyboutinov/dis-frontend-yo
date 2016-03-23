@@ -22,4 +22,10 @@ angular.module('dis1App')
       });
     });
 
+    configDataStorage.subscribeToConfig({portletId: 'test', configName: 'test'}, function(config) {
+      $scope.$apply(function(){
+        $scope.test = config;
+      });
+    });
+
   });

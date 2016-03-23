@@ -131,14 +131,8 @@ angular.module('dis1App')
 
     var _subscribe = function(websocketQueue, callbacksQueue, cachedDataQueue) {
 
-      console.log(" subscribe fired with websocketQueue:");
-      console.log(websocketQueue);
-
-      if (_isConnectionEstablished()) {
-        _subscribeWithWebSocket(websocketQueue, callbacksQueue, cachedDataQueue);
-      } else {
         _fireCallbacksForCachedData(callbacksQueue, cachedDataQueue);
-      }
+        _subscribeWithWebSocket(websocketQueue, callbacksQueue, cachedDataQueue);
 
     };
 
@@ -151,6 +145,12 @@ angular.module('dis1App')
     };
 
     var _subscribeWithWebSocket = function(websocketQueue, callbacksQueue, cachedDataQueue) {
+
+      console.log("Subscribe with WebSocket:");
+      console.log({
+        dataKind: 'config',
+        list: websocketQueue
+      });
 
       sharedWebSocket.subscribe(
         {
