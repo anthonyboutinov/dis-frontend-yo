@@ -26,14 +26,9 @@ angular.module('dis1App')
     };
 
 
-    dataStream.onMessage(function(message) {
-      console.log(message);
-      // this.collection.push(JSON.parse(message.data));
-    });
-    //
-    // this.getData = function() {
-    //   dataStream.send(JSON.stringify({ action: 'get' }));
-    // };
+    // dataStream.onMessage(function(message) {
+      // console.log(message);
+    // });
 
     dataStream.onError(function(message) {
       console.log(message);
@@ -52,22 +47,25 @@ angular.module('dis1App')
 
         // note to self
         subscribedTo.push(to);
+        var id = getNextId();
+        ids.push(id);
 
         // send subscribe request
         dataStream.send(JSON.stringify({
           action: 'subscribe',
           to: to, // will be an array for bulk data request
-          id: getNextId()
+          id: id
         }));
       }
 
-      var id = ids[subscribedTo.indexOf(to)];
+      // var id = ids[subscribedTo.indexOf(to)]; // no need here
 
       dataStream.onMessage(function(message) {
-        var data = JSON.parse(message);
-        console.log(message);
+        var data = JSON.parse(message.data);
+        console.log(data);
         if (data.id === id) {
-          callback(message.content);
+          console.log("ID " + id + " matched!");
+          callback(data.content);
         }
       });
     };

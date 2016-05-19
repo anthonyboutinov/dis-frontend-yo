@@ -162,6 +162,7 @@ angular.module('dis1App')
           var index, length;
           for (index = 0, length = multirespond.length; index < length; index++) {
             var respond = multirespond[index];
+            console.log(respond);
             /*
               respond: {
                 query,
