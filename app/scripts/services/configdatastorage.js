@@ -173,8 +173,6 @@ angular.module('dis1App')
             // find and retrieve callback function for this item
             var indexInQueue = _indexOfProperty(respond.query, websocketQueue);
             var callbacks = callbacksQueue[indexInQueue];
-            console.log(indexInQueue);
-            console.log(callbacks);
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
             var cachedData = cachedDataQueue[indexInQueue];
@@ -186,9 +184,11 @@ angular.module('dis1App')
               // if not already up to date
               if (respond.content !== 'alreadyUpToDate') {
 
+                console.log(respond);
+
                 // update cache with new value
                 alasql('UPDATE CONFIG SET DATA = ?, HASH = ? WHERE PAGE_ID = ? AND NAME = ?', [
-                  respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
+                  respond.content.DATA, respond.content.HASH, respond.query.portletId, respond.query.configName
                 ]);
 
                 // and run callback functions on this fresh data
@@ -209,7 +209,7 @@ angular.module('dis1App')
             else {
               // write to cache
               alasql('INSERT INTO CONFIG (PAGE_ID, NAME, DATA, HASH) VALUES (?, ?, ?, ?)', [
-                respond.PAGE_ID, respond.NAME, respond.content.DATA, respond.content.HASH
+                respond.query.portletId, respond.query.configName, respond.content.DATA, respond.content.HASH
               ]);
 
               // run callback function on this data
