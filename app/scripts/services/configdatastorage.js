@@ -171,15 +171,17 @@ angular.module('dis1App')
             */
 
             // find and retrieve callback function for this item
-            var indexInQueue = _indexOfProperty(respond.query, 'query', websocketQueue);
-            var callback = callbacksQueue[indexInQueue];
+            var indexInQueue = _indexOfProperty(respond.query, websocketQueue);
+            var callbacks = callbacksQueue[indexInQueue];
+            console.log(indexInQueue);
+            console.log(callbacks);
 
             // find and retrieve `cachedData` value for this item in `cachedDataQueue` array
             var cachedData = cachedDataQueue[indexInQueue];
-
+            console.log(cachedData);
 
             // if data is present in cache
-            if (cachedData === null) {
+            if (cachedData != null) {
 
               // if not already up to date
               if (respond.content !== 'alreadyUpToDate') {
@@ -189,14 +191,18 @@ angular.module('dis1App')
                   respond.content.DATA, respond.content.HASH, respond.PAGE_ID, respond.NAME
                 ]);
 
-                // and run callback function on this fresh data
-                callback(respond.content.DATA);
+                // and run callback functions on this fresh data
+                callbacks.forEach(function(callback) {
+                  callback(respond.content.DATA);
+                });
 
               }
               // if cached data IS up to date
               else {
-                // run callback function on cached data
-                callback(cachedData);
+                // run callback functions on cached data
+                callbacks.forEach(function(callback) {
+                  callback(cachedData);
+                });
               }
             }
             // if there is no entry in the cache
@@ -207,7 +213,9 @@ angular.module('dis1App')
               ]);
 
               // run callback function on this data
-              callback(respond.content.DATA);
+              callbacks.forEach(function(callback) {
+                callback(respond.content.DATA);
+              });
             }
 
           } // eof for loop
@@ -230,10 +238,10 @@ angular.module('dis1App')
 
     };
 
-    var _indexOfProperty = function(needle, propertyName, haystack) {
+    var _indexOfProperty = function(needle, haystack) {
       var index, length;
       for (index = 0, length = haystack.length; index < length; index++) {
-        if (deepEquals.compare(haystack[index][propertyName], needle)) {
+        if (deepEquals.compare(haystack[index], needle)) {
           return index;
         }
       }
@@ -279,7 +287,7 @@ angular.module('dis1App')
       // }
 
       // find this query
-      var index = _indexOfProperty(query, 'query', queue);
+      var index = _indexOfProperty(query, queue);
 
       if (index > -1) {
         // if already present, add another callback function to it
