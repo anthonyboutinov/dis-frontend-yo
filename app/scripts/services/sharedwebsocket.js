@@ -12,7 +12,7 @@ angular.module('dis1App')
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     // Open a WebSocket connection
-    var dataStream = $websocket('ws://localhost:8080/websocket-test/echo');
+    var dataStream = $websocket('ws://localhost:8080/websocket-test/sharedwebsocket');
 
     // this.collection = [];
 
