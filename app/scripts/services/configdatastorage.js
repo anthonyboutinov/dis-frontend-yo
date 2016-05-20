@@ -178,6 +178,10 @@ angular.module('dis1App')
             var cachedData = cachedDataQueue[indexInQueue];
             console.log(cachedData);
 
+            if (respond.content === "negative") {
+              throw "ConfigDataStorage error: server returned negative results for query " + JSON.stringify(respond.query);
+            }
+
             // if data is present in cache
             if (cachedData != null) {
 
