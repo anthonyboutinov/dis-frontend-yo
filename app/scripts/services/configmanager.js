@@ -2,13 +2,13 @@
 
 /**
  * @ngdoc service
- * @name dis1App.configDataStorage
+ * @name dis1App.configManager
  * @description
- * # configDataStorage
+ * # configManager
  * Service in the dis1App.
  */
 angular.module('dis1App')
-  .run(function(configDataStorage) {
+  .run(function(configManager) {
 
   alasql.options.angularjs = true;
   alasql.options.errorlog = false; // Log or throw error
@@ -32,13 +32,13 @@ angular.module('dis1App')
                   UNIQUE(PAGE_ID, NAME) \
                 );');
                 console.log(new Date() + ' alasql: database APP has been selected, table CONFIG has been created');
-                configDataStorage.run();
+                configManager.run();
 
     });
     console.log(new Date() + ' alasql: init request sent');
 
   })
-  .service('configDataStorage', function (sharedWebSocket, deepEquals) {
+  .service('configManager', function (sharedWebSocket, deepEquals) {
 
     this.resetTable = function() {
       this.drop();
@@ -96,7 +96,7 @@ angular.module('dis1App')
     var queue = []; // an array of {query, [callback]}
 
     this.run = function() {
-      console.log("configDataStorage run event fired");
+      console.log("configManager run event fired");
       doWaitForRunCall = false;
 
       var websocketQueue = []; // an array of query values

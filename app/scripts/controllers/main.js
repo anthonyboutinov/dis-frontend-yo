@@ -8,7 +8,7 @@
  * Controller of the dis1App
  */
 angular.module('dis1App')
-  .controller('MainCtrl', function ($scope, configDataStorage) {
+  .controller('MainCtrl', function ($scope, configManager) {
 
     $scope.name = "Prototype";
 
@@ -16,13 +16,13 @@ angular.module('dis1App')
 
     $scope.config = null;
 
-    configDataStorage.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
+    configManager.subscribeToConfig({portletId: 'main', configName: 'styling'}, function(config) {
       $scope.$apply(function(){
         $scope.config = config;
       });
     });
 
-    configDataStorage.subscribeToConfig({portletId: 'test', configName: 'test'}, function(config) {
+    configManager.subscribeToConfig({portletId: 'test', configName: 'test'}, function(config) {
       $scope.$apply(function(){
         $scope.test = config;
       });
